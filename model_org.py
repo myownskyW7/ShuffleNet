@@ -137,7 +137,7 @@ class ShuffleUnit(nn.Module):
         if batch_norm:
             modules['batch_norm'] = nn.BatchNorm2d(out_channels)
         if relu:
-            modules['relu'] = nn.ReLU(inplace=True)
+            modules['relu'] = nn.ReLU()
         if len(modules) > 1:
             return nn.Sequential(modules)
         else:
@@ -159,7 +159,7 @@ class ShuffleUnit(nn.Module):
         out = self.g_conv_1x1_expand(out)
         
         out = self._combine_func(residual, out)
-        return F.relu(out, inplace=True)
+        return F.relu(out)
 
 
 class ShuffleNet(nn.Module):
@@ -207,8 +207,6 @@ class ShuffleNet(nn.Module):
         self.conv1 = conv3x3(self.in_channels,
                              self.stage_out_channels[1], # stage 1
                              stride=2)
-        self.bn1 = nn.BatchNorm2d(self.stage_out_channels[1])
-        self.relu1 = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         # Stage 2
@@ -279,8 +277,6 @@ class ShuffleNet(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu1(x)
         x = self.maxpool(x)
 
         x = self.stage2(x)
