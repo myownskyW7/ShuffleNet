@@ -237,6 +237,9 @@ def train(train_loader, model, criterion, optimizer, epoch, lr, pavi_log):
                     'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                     epoch, i, len(train_loader), batch_time=batch_time,
                     data_time=data_time, lr=lr, loss=losses, top1=top1, top5=top5))
+            losses.reset()
+            top1.reset()
+            top5.reset()
     
     return num_iters
 
@@ -274,7 +277,7 @@ def validate(val_loader, model, criterion, num_iters, pavi_log):
     outputs['loss'] = losses.avg
     outputs['top1'] = top1.avg
     outputs['top5'] = top5.avg
-    pavi_log.log('train', num_iters, outputs)
+    pavi_log.log('val', num_iters, outputs)
     print('Test: [{0}/{1}]\t'
             'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
             'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
