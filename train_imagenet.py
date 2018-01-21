@@ -62,6 +62,8 @@ parser.add_argument('--checkpoint', default='checkpoint.pth', type=str,
                     help='path to save checkpoint')
 parser.add_argument('--step', default=30, type=int, metavar='N',
                     help='lr decayed by 10 every int(step) epochs')
+parser.add_argument('--linear_lr', dest='linear_lr', action='store_true',
+                    help='use linear lr policy')
 best_prec1 = 0
 
 
@@ -158,12 +160,15 @@ def main():
         validate(val_loader, model, criterion)
         return
     
-    pavi_log =  torchpack.PaviLogger(url='http://pavi.parrotsdnn.org/log', username='wjq', password='123456')
+    pavi_log = torchpack.PaviLogger(url='http://pavi.parrotsdnn.org/log', username='wjq', password='123456')
     pavi_log.connect('ShuffleNet')
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        lr = adjust_learning_rate(optimizer, epoch, args.step)
+        if not args.linear_lr:
+            lr = adjust_learning_rate(optimizer, epoch, args.step)
+        else:
+            lr = args.lr
 
         # train for one epoch
         num_iters = train(train_loader, model, criterion, optimizer, epoch, lr, pavi_log)
@@ -190,12 +195,15 @@ def train(train_loader, model, criterion, optimizer, epoch, lr, pavi_log):
     top1 = AverageMeter()
     top5 = AverageMeter()
     num_iters = epoch*len(train_loader)
+    total_iters = args.epochs*len(train_loader)
 
     # switch to train mode
     model.train()
 
     end = time.time()
     for i, (input, target) in enumerate(train_loader):
+        if args.linear_lr:
+            lr = adjust_learning_rate_linear(optimizer, num_iters, total_iters)
         num_iters += 1
         # measure data loading time
         data_time.update(time.time() - end)
@@ -295,7 +303,7 @@ def validate(val_loader, model, criterion, num_iters, pavi_log):
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        shutil.copyfile(filename, str('best_'+filename))
 
 
 class AverageMeter(object):
@@ -319,6 +327,12 @@ class AverageMeter(object):
 def adjust_learning_rate(optimizer, epoch, step):
     """Sets the learning rate to the initial LR decayed by 10 every int(step) epochs"""
     lr = args.lr * (0.1 ** (epoch // int(step)))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+    return lr
+
+def adjust_learning_rate_linear(optimizer, num_iters, total_iters):
+    lr = args.lr * (1 - num_iters/float(total_iters))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
     return lr
